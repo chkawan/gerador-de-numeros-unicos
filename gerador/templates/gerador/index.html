@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Sequências</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .btn-disabled {
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+        .sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #fff;
+            padding: 15px 0;
+            box-shadow: 0 4px 2px -2px gray;
+        }
+        .sequencias-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .container {
+            padding-top: 30px;
+        }
+        .form-control-range {
+            width: 100%;
+        }
+        .form-inline label {
+            margin-right: 10px;
+        }
+        .form-inline .form-group {
+            margin-right: 15px;
+        }
+        .card-body {
+            padding: 10px 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Gerador de Sequências Únicas</h1>
+
+    <!-- Div com botões fixos no topo -->
+    <div class="sticky-top">
+        <!-- Formulário para gerar novas sequências -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-4 form-inline">
+                            <div class="form-group">
+                                <label for="quantidade">Quantas sequências gerar?</label>
+                                <input type="number" id="quantidade" name="quantidade" class="form-control" value="10" min="1" max="100">
+                            </div>
+                        </div>
+                        <div class="col-5 form-inline">
+                            <div class="form-group ml-1">
+                                <label for="tamanho-sequencia">Quantidade de Números por Sequência:
+                                <input type="range" id="tamanho-sequencia" name="tamanho_sequencia" class="form-control-range" min="6" max="10" value="6">
+                                <p id="tamanho-sequencia-valor">6 números por sequência</p></label>
+                            </div>
+                        </div>
+                        <div class="col-2 form-inline">
+                            <button type="submit" class="btn btn-primary mt-3">Gerar Sequências</button>
+                        </div>
+                        <!-- Exibição das Possibilidades e Sequências geradas -->
+                        <div class="col-12 text-right">
+                            <p><strong>Possibilidades:</strong> <span id="possibilidades">{{ total_de_possibilidades }}</span></p>
+                            <p><strong>Sequências geradas:</strong> {{ status }}</p>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Botões de Exportação e Limpar Histórico -->
+        <div class="row mt-4">
+            <div class="col">
+                <a href="{% url 'exportar' %}" class="btn {% if not sequencias_geradas %}btn-secondary btn-disabled{% else %}btn-success{% endif %}" id="exportar-btn" {% if not sequencias_geradas %}disabled{% endif %}>Exportar Todas as Sequências</a>
+            </div>
+            <div class="col">
+                <a href="{% url 'exportar_visiveis' %}" class="btn {% if not sequencias_geradas %}btn-secondary btn-disabled{% else %}btn-info{% endif %}" id="exportar-visiveis-btn" {% if not sequencias_geradas %}disabled{% endif %}>Exportar Sequências Visíveis</a>
+            </div>
+            <div class="col">
+                <button id="limpar-historico" class="btn {% if not sequencias_geradas %}btn-secondary btn-disabled{% else %}btn-danger{% endif %}" {% if not sequencias_geradas %}disabled{% endif %}>Limpar Histórico</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exibição das Sequências Geradas -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <strong>Sequências Geradas</strong>
+        </div>
+        <div class="card-body sequencias-list">
+            <div class="list-group" id="sequencias-list">
+                {% if numeros %}
+                    {% for seq in numeros %}
+                        <div class="list-group-item">
+                            {{ seq }}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p>Nenhuma sequência gerada ainda.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // Função para calcular o número de possibilidades com base no tamanho da sequência
+    function calcularPossibilidades(tamanhoSequencia) {
+        const n = 60;
+        const k = tamanhoSequencia;
+        return (factorial(n) / (factorial(k) * factorial(n - k))).toFixed(0);
+    }
+
+    // Função para calcular fatorial
+    function factorial(num) {
+        let f = 1;
+        for (let i = 2; i <= num; i++) {
+            f *= i;
+        }
+        return f;
+    }
+
+    // Função para formatar números com separação de milhar
+    function formatarNumero(numero) {
+        return numero.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    // Função para atualizar o valor de "Possibilidades" com máscara
+    function atualizarPossibilidades(tamanhoSequencia) {
+        const possibilidades = calcularPossibilidades(tamanhoSequencia);
+        document.getElementById("possibilidades").innerText = formatarNumero(possibilidades);
+    }
+
+    // Atualiza o texto do input range e recalcula as possibilidades
+    document.getElementById("tamanho-sequencia").addEventListener("input", function() {
+        const tamanhoSequencia = this.value;
+        document.getElementById("tamanho-sequencia-valor").innerText = tamanhoSequencia + " números por sequência";
+
+        // Atualiza a quantidade de possibilidades
+        atualizarPossibilidades(tamanhoSequencia);
+    });
+
+    // Formatar a possibilidade ao carregar a página
+    document.addEventListener("DOMContentLoaded", function() {
+        const tamanhoSequencia = document.getElementById("tamanho-sequencia").value;
+        atualizarPossibilidades(tamanhoSequencia);
+    });
+
+    // Variável de contexto fornecida pelo Django indicando o estado das sequências geradas
+    var sequenciasGeradas = {{ sequencias_geradas|length }};
+    
+    // Desabilita os botões de exportação se não houver sequências geradas
+    if (sequenciasGeradas === 0) {
+        $('#exportar-btn').prop('disabled', true).addClass('btn-disabled');
+        $('#exportar-visiveis-btn').prop('disabled', true).addClass('btn-disabled');
+        $('#limpar-historico').prop('disabled', true).addClass('btn-disabled');
+    } else {
+        $('#exportar-btn').prop('disabled', false).removeClass('btn-disabled');
+        $('#exportar-visiveis-btn').prop('disabled', false).removeClass('btn-disabled');
+        $('#limpar-historico').prop('disabled', false).removeClass('btn-disabled');
+    }
+
+    // Lógica do botão Limpar Histórico
+    $('#limpar-historico').on('click', function(event) {
+        event.preventDefault();
+        if (sequenciasGeradas > 0) {
+            if (confirm('Tem certeza que deseja limpar o histórico de sequências geradas?')) {
+                $.ajax({
+                    url: '{% url "limpar_historico" %}',
+                    type: 'POST',
+                    data: {
+                        'csrfmiddlewaretoken': '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        window.location.href = "{% url 'index' %}";
+                    },
+                    error: function(xhr, errmsg, err) {
+                        alert('Erro ao tentar limpar o histórico!');
+                    }
+                });
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
